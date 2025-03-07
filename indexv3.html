@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Player with Toggle and Auto-Switch</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #rect {
+            width: 150px;
+            height: 50px;
+            border-radius: 10px;
+            background-color: blue;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-align: center;
+        }
+        #rect.green {
+            background-color: green;
+        }
+        #toggle-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: green;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+            border: none;
+            outline: none;
+        }
+        #toggle-btn.disabled {
+            background-color: red;
+        }
+        #progress-container {
+            width: 150px;
+            height: 10px;
+            background-color: #ddd;
+            margin-top: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #loading-bar {
+            width: 0;
+            height: 10px;
+            background-color: #4caf50;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <button id="toggle-btn">997Hz</button>
+    <div id="rect">No Dither</div>
+    <div id="progress-container">
+        <div id="loading-bar"></div>
+    </div>
+    <audio id="audio-default" preload="auto" src="https://www.dropbox.com/s/ph5bxu17n2phq7f/No%20Dither.wav?st=4y6i3bm7&raw=1"></audio>
+    <audio id="audio-alt" preload="auto" src="https://www.dropbox.com/s/srkqbjpnmuumxbg/NoDither_Nofund.wav?st=vsxs8hte&raw=1"></audio>
+
+    <script>
+        const rect = document.getElementById("rect");
+        const toggleBtn = document.getElementById("toggle-btn");
+        const loadingBar = document.getElementById("loading-bar");
+        const audioDefault = document.getElementById("audio-default");
+        const audioAlt = document.getElementById("audio-alt");
+
+        // Keep track of the toggle button state (enabled by default)
+        let isToggleEnabled = true;
+
+        // Monitor loading progress for both audios
+        function updateLoadingBar() {
+            const defaultBuffered = audioDefault.buffered.length > 0 ? audioDefault.buffered.end(0) : 0;
+            const altBuffered = audioAlt.buffered.length > 0 ? audioAlt.buffered.end(0) : 0;
+            const defaultDuration = audioDefault.duration || 1;
+            const altDuration = audioAlt.duration || 1;
+
+            const percent = Math.min(((defaultBuffered / defaultDuration) + (altBuffered / altDuration)) / 2 * 100, 100);
+            loadingBar.style.width = percent + "%";
+        }
+
+        audioDefault.addEventListener("progress", updateLoadingBar);
+        audioAlt.addEventListener("progress", updateLoadingBar);
+
+        // Play/pause audio on rectangle click
+        rect.addEventListener("click", () => {
+            if (isToggleEnabled) {
+                audioAlt.pause(); // Pause alternate audio if playing
+                audioDefault.currentTime = 0;
+                audioDefault.play();
+                rect.classList.add("green");
+            } else {
+                audioDefault.pause(); // Pause default audio if playing
+                audioAlt.currentTime = 0;
+                audioAlt.play();
+                rect.classList.add("green");
+            }
+        });
+
+        // Auto-switch audio when toggle button is clicked
+        toggleBtn.addEventListener("click", () => {
+            isToggleEnabled = !isToggleEnabled;
+            toggleBtn.classList.toggle("disabled", !isToggleEnabled);
+            toggleBtn.style.backgroundColor = isToggleEnabled ? "green" : "red";
+
+            // Check if any audio is currently playing and switch automatically
+            if (!audioDefault.paused || !audioAlt.paused) {
+                // Pause the currently playing audio
+                audioDefault.pause();
+                audioAlt.pause();
+
+                // Play the appropriate audio based on the new toggle state
+                if (isToggleEnabled) {
+                    audioDefault.currentTime = 0;
+                    audioDefault.play();
+                } else {
+                    audioAlt.currentTime = 0;
+                    audioAlt.play();
+                }
+            }
+        });
+
+        // Stop the audio and reset rectangle when audio ends
+        audioDefault.addEventListener("ended", () => {
+            rect.classList.remove("green");
+        });
+        audioAlt.addEventListener("ended", () => {
+            rect.classList.remove("green");
+        });
+    </script>
+</body>
+</html>
