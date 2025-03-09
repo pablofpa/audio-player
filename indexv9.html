@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audio Player – Lógica Completa con Conmutación Automática</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+    .row {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    #main-row { margin-top: 0; }
+    #first-row { margin-top: 50px; }
+    #second-row { margin-top: 30px; }
+    .rect {
+      width: 150px;
+      padding: 10px;
+      border-radius: 10px;
+      background-color: blue;
+      color: white;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .rect.green { background-color: green; }
+    .progress-container {
+      width: 150px;
+      height: 6px;
+      background-color: #ddd;
+      border-radius: 5px;
+      overflow: hidden;
+      position: absolute;
+      bottom: -15px;
+      left: 0;
+    }
+    .loading-bar {
+      width: 0;
+      height: 100%;
+      background-color: #4caf50;
+      transition: width 0.3s;
+    }
+    #toggle-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: green;
+      color: white;
+      font-weight: bold;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      margin-bottom: 40px;
+    }
+    #toggle-btn.disabled { background-color: red; }
+  </style>
+</head>
+<body>
+  <button id="toggle-btn">997Hz</button>
+  <div id="main-row" class="row">
+    <div class="rect" id="rect-main">16bits No Dither
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-main"></div></div>
+    </div>
+  </div>
+  <div id="first-row" class="row">
+    <div class="rect" id="rect-1">Ozo11 Dither: Low<br>NS: Off
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-1"></div></div>
+    </div>
+    <div class="rect" id="rect-2">Pro L2 Dither: On<br>NS: Off
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-2"></div></div>
+    </div>
+    <div class="rect" id="rect-3">L2 T1 Dither: On<br>NS: Off
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-3"></div></div>
+    </div>
+    <div class="rect" id="rect-4">L2 T2 Dither: On<br>NS: Off
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-4"></div></div>
+    </div>
+  </div>
+  <div id="second-row" class="row">
+    <div class="rect" id="rect-5">Ozo 11 Dither: Low<br>NS: High
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-5"></div></div>
+    </div>
+    <div class="rect" id="rect-6">Pro L2 Dither: On<br>NS: Optimized
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-6"></div></div>
+    </div>
+    <div class="rect" id="rect-7">L2 T1 Dither: On<br>NS: Normal
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-7"></div></div>
+    </div>
+    <div class="rect" id="rect-8">L2 T1 Dither: On<br>NS: Normal
+      <div class="progress-container"><div class="loading-bar" id="loading-bar-8"></div></div>
+    </div>
+  </div>
+
+  <script>
+    const audioMapping = {
+      "rect-main": {
+        "997_no": "https://files.catbox.moe/iq58y9.wav",
+        "997_act": "https://files.catbox.moe/hmphwh.wav"
+      },
+      "rect-1": {
+        "997_no": "https://files.catbox.moe/9u3ok0.wav",
+        "997_act": "https://files.catbox.moe/9t5bdz.wav"
+      },
+      "rect-2": {
+        "997_no": "https://files.catbox.moe/ebu3va.wav",
+        "997_act": "https://files.catbox.moe/ievmml.wav"
+      },
+      "rect-3": {
+        "997_no": "https://files.catbox.moe/p4etiu.wav",
+        "997_act": "https://files.catbox.moe/bbwttj.wav"
+      },
+      "rect-4": {
+        "997_no": "https://files.catbox.moe/rvpu4u.wav",
+        "997_act": "https://files.catbox.moe/y56men.wav"
+      },
+      "rect-5": {
+        "997_no": "https://files.catbox.moe/2623aw.wav",
+        "997_act": "https://files.catbox.moe/p9wbfr.wav"
+      },
+      "rect-6": {
+        "997_no": "https://files.catbox.moe/658a5r.wav",
+        "997_act": "https://files.catbox.moe/ew2z67.wav"
+      },
+      "rect-7": {
+        "997_no": "https://files.catbox.moe/iy7qcd.wav",
+        "997_act": "https://files.catbox.moe/ynr5yt.wav"
+      },
+      "rect-8": {
+        "997_no": "https://files.catbox.moe/f8erzm.wav",
+        "997_act": "https://files.catbox.moe/gqwq63.wav"
+      }
+    };
+
+    let isToggleEnabled = true;
+    let currentActiveRect = null;
+    const audioPlayers = {};
+
+    // Función para precargar audios con mejor manejo de errores
+    function preloadAudio(rectId, urls, loadingBar) {
+      const audioNo = new Audio(urls["997_no"]);
+      const audioAct = new Audio(urls["997_act"]);
+      audioPlayers[rectId] = { no: audioNo, act: audioAct };
+
+      function updateProgress() {
+        let percentNo = audioNo.buffered.length ? (audioNo.buffered.end(0) / (audioNo.duration || 1)) * 100 : 0;
+        let percentAct = audioAct.buffered.length ? (audioAct.buffered.end(0) / (audioAct.duration || 1)) * 100 : 0;
+        const avgPercent = (percentNo + percentAct) / 2;
+        loadingBar.style.width = `${avgPercent}%`;
+      }
+
+      audioNo.addEventListener("progress", updateProgress);
+      audioAct.addEventListener("progress", updateProgress);
+      audioNo.addEventListener("canplaythrough", () => console.log(`${rectId} - 997_no listo`));
+      audioAct.addEventListener("canplaythrough", () => console.log(`${rectId} - 997_act listo`));
+      audioNo.addEventListener("error", (e) => {
+        console.error(`${rectId} - 997_no falló:`, e.target.error ? e.target.error.message : "Error desconocido");
+      });
+      audioAct.addEventListener("error", (e) => {
+        console.error(`${rectId} - 997_act falló:`, e.target.error ? e.target.error.message : "Error desconocido");
+      });
+
+      audioNo.load();
+      audioAct.load();
+    }
+
+    // Precargar todos los audios al inicio
+    Object.keys(audioMapping).forEach(rectId => {
+      const suffix = rectId === "rect-main" ? "main" : rectId.split("-")[1];
+      const loadingBar = document.getElementById(`loading-bar-${suffix}`);
+      preloadAudio(rectId, audioMapping[rectId], loadingBar);
+    });
+
+    function updateCurrentAudio() {
+      if (currentActiveRect) {
+        const players = audioPlayers[currentActiveRect];
+        players.no.pause();
+        players.act.pause();
+        players.no.currentTime = 0;
+        players.act.currentTime = 0;
+        const stateKey = isToggleEnabled ? "no" : "act";
+        const chosenAudio = players[stateKey];
+        chosenAudio.currentTime = 0;
+        chosenAudio.play().catch(e => console.error(`Error al reproducir ${currentActiveRect}:`, e));
+      }
+    }
+
+    function stopAllAudio() {
+      Object.keys(audioPlayers).forEach(rectId => {
+        const players = audioPlayers[rectId];
+        players.no.pause();
+        players.act.pause();
+        players.no.currentTime = 0;
+        players.act.currentTime = 0;
+        const rectElem = document.getElementById(rectId);
+        rectElem?.classList.remove("green");
+      });
+      currentActiveRect = null;
+    }
+
+    const toggleBtn = document.getElementById("toggle-btn");
+    toggleBtn.addEventListener("click", () => {
+      isToggleEnabled = !isToggleEnabled;
+      toggleBtn.classList.toggle("disabled", !isToggleEnabled);
+      toggleBtn.style.backgroundColor = isToggleEnabled ? "green" : "red";
+      updateCurrentAudio();
+    });
+
+    Object.keys(audioMapping).forEach(rectId => {
+      const rectElem = document.getElementById(rectId);
+      rectElem?.addEventListener("click", () => {
+        stopAllAudio();
+        currentActiveRect = rectId;
+        const stateKey = isToggleEnabled ? "no" : "act";
+        const chosenAudio = audioPlayers[rectId][stateKey];
+        chosenAudio.currentTime = 0;
+        chosenAudio.play().catch(e => console.error(`Error al reproducir ${rectId}:`, e));
+        rectElem.classList.add("green");
+        chosenAudio.onended = () => {
+          rectElem.classList.remove("green");
+          currentActiveRect = null;
+        };
+      });
+    });
+  </script>
+</body>
+</html>
